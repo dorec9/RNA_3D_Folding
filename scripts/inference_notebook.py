@@ -6,25 +6,25 @@ SETUP INSTRUCTIONS (paste into Kaggle notebook cells before running):
 =============================================================================
 
 Cell 1 – Install offline wheels from attached datasets:
-    import subprocess, sys
+    import subprocess, sys, glob
+    DS = "/kaggle/input/datasets"
     for wheel_dir in [
-        "/kaggle/input/biopython",
-        "/kaggle/input/ml-collections",
+        f"{DS}/ogurtsov/biopython",
+        f"{DS}/ogurtsov/ml-collections",
     ]:
         subprocess.run([sys.executable, "-m", "pip", "install",
                         "--no-index", "--find-links=" + wheel_dir,
                         "--quiet", "."],
                        check=False)
-    # Install Protenix wheel from protenix-packages
-    import glob
-    for whl in glob.glob("/kaggle/input/protenix-packages/*.whl"):
+    # Install Protenix wheel from zoushuxian/protenix-packages
+    for whl in glob.glob(f"{DS}/zoushuxian/protenix-packages/*.whl"):
         subprocess.run([sys.executable, "-m", "pip", "install",
                         "--quiet", whl], check=False)
 
 Cell 2 – Add repo and Protenix source to path:
     import sys
     sys.path.insert(0, "/kaggle/working/RNA_3D_Folding")
-    sys.path.insert(0, "/kaggle/input/protenix-rmsa-repo")
+    sys.path.insert(0, "/kaggle/input/datasets/zoushuxian/protenix-rmsa-repo")
 
 Cell 3 – Run this file:
     exec(open("/kaggle/working/RNA_3D_Folding/scripts/inference_notebook.py").read())
@@ -57,8 +57,8 @@ REPO_PATH = "/kaggle/working/RNA_3D_Folding"
 if REPO_PATH not in sys.path:
     sys.path.insert(0, REPO_PATH)
 
-# Protenix source repo (installed as dataset attachment)
-PROTENIX_SRC = "/kaggle/input/protenix-rmsa-repo"
+# Protenix source repo (zoushuxian/protenix-rmsa-repo dataset)
+PROTENIX_SRC = "/kaggle/input/datasets/zoushuxian/protenix-rmsa-repo"
 if os.path.isdir(PROTENIX_SRC) and PROTENIX_SRC not in sys.path:
     sys.path.insert(0, PROTENIX_SRC)
 
@@ -76,17 +76,18 @@ logger = logging.getLogger("kaggle_runner")
 # Kaggle path constants
 # ---------------------------------------------------------------------------
 INPUT = "/kaggle/input"
-COMP  = f"{INPUT}/stanford-rna-3d-folding-2"
+COMP  = f"{INPUT}/competitions/stanford-rna-3d-folding-2"
+DS    = f"{INPUT}/datasets"
 
 PATHS = {
-    # Competition data (all inside the single competition dataset)
+    # Competition data
     "test_csv":         f"{COMP}/test_sequences.csv",
     "pdb_db":           f"{COMP}/PDB_RNA/pdb_seqres_NA",
     "cif_dir":          f"{COMP}/PDB_RNA/mmcif",
     "msa_root":         f"{COMP}/MSA",
-    # Model weights
-    "protenix_weights": f"{INPUT}/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt",
-    "drfold2_weights":  "",   # DRFold2 not available on Kaggle — skipped automatically
+    # Model weights (zoushuxian/protenix-finetuned-rna3db-all-1599)
+    "protenix_weights": f"{DS}/zoushuxian/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt",
+    "drfold2_weights":  "",   # DRFold2 not available — skipped automatically
     # Output
     "submission":       "/kaggle/working/submission.csv",
 }
