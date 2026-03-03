@@ -16,8 +16,8 @@ Cell 1 – Install offline wheels from attached datasets:
                         "--no-index", "--find-links=" + wheel_dir,
                         "--quiet", "."],
                        check=False)
-    # Install Protenix wheel from zoushuxian/protenix-packages
-    for whl in glob.glob(f"{DS}/zoushuxian/protenix-packages/*.whl"):
+    # Install Protenix wheel from zoushuxian/protenix-packages/packages/
+    for whl in glob.glob(f"{DS}/zoushuxian/protenix-packages/packages/*.whl"):
         subprocess.run([sys.executable, "-m", "pip", "install",
                         "--quiet", whl], check=False)
 
