@@ -35,9 +35,9 @@ def section(title):
 COMP = "/kaggle/input/competitions/stanford-rna-3d-folding-2"
 DS   = "/kaggle/input/datasets"
 
-CODE_SRC       = f"{DS}/doyhud/rna-3d-folding-code"
+CODE_SRC       = f"{DS}/doyhud/rna-3d-folding-code/RNA_3D_Folding-claude-sweet-maxwell-rteQC"
 PROTENIX_WT    = f"{DS}/zoushuxian/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt"
-PROTENIX_REPO  = f"{DS}/zoushuxian/protenix-rmsa-repo"
+PROTENIX_REPO  = f"{DS}/zoushuxian/protenix-rmsa-repo/protenix_kaggle"
 BIOPYTHON_DIR  = f"{DS}/ogurtsov/biopython"
 ML_COLL_DIR    = f"{DS}/ogurtsov/ml-collections"
 
