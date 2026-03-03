@@ -5,29 +5,41 @@ Kaggle notebook entry point for the Stanford RNA 3D Folding Part 2 pipeline.
 SETUP INSTRUCTIONS (paste into Kaggle notebook cells before running):
 =============================================================================
 
-Cell 1 – Install offline wheels (attach dataset containing pre-downloaded wheels):
+Cell 1 – Install offline wheels from attached datasets:
     import subprocess, sys
-    WHEELS = "/kaggle/input/rna-prediction-engines/wheels"
-    subprocess.run([sys.executable, "-m", "pip", "install",
-                    "--no-index", "--find-links=" + WHEELS,
-                    "torch", "einops", "ml_collections"],
-                   check=False)
+    for wheel_dir in [
+        "/kaggle/input/biopython",
+        "/kaggle/input/ml-collections",
+    ]:
+        subprocess.run([sys.executable, "-m", "pip", "install",
+                        "--no-index", "--find-links=" + wheel_dir,
+                        "--quiet", "."],
+                       check=False)
+    # Install Protenix wheel from protenix-packages
+    import glob
+    for whl in glob.glob("/kaggle/input/protenix-packages/*.whl"):
+        subprocess.run([sys.executable, "-m", "pip", "install",
+                        "--quiet", whl], check=False)
 
-Cell 2 – Add repo to path:
+Cell 2 – Add repo and Protenix source to path:
     import sys
     sys.path.insert(0, "/kaggle/working/RNA_3D_Folding")
+    sys.path.insert(0, "/kaggle/input/protenix-rmsa-repo")
 
 Cell 3 – Run this file:
     exec(open("/kaggle/working/RNA_3D_Folding/scripts/inference_notebook.py").read())
 
 =============================================================================
-DATASETS TO ATTACH IN KAGGLE:
+DATASETS TO ATTACH IN KAGGLE (6 total + competition data):
 =============================================================================
-- stanford-rna-3d-folding-part-2   (competition data: test.csv)
-- rna-pdb-20250529                 (PDB RNA MMseqs2 database + mmCIF files)
-- rna-msa-db                       (precomputed rMSA outputs)
-- rna-prediction-engines           (model weights + Python wheel files)
-- rna-3d-folding-templates         (organiser-released precomputed templates)
+- stanford-rna-3d-folding-2          (competition data: test_sequences.csv,
+                                       PDB_RNA/, MSA/)
+- protenix-finetuned-rna3db-all-1599 (Protenix weights: 1599_ema_0.999.pt)
+- protenix-packages                  (USalign binary + Protenix wheel)
+- protenix-rmsa-repo                 (Protenix source code)
+- protenix-mg-packages               (AIDO ModelGenerator)
+- biopython                          (offline .whl)
+- ml-collections                     (offline .whl)
 =============================================================================
 """
 
@@ -45,6 +57,11 @@ REPO_PATH = "/kaggle/working/RNA_3D_Folding"
 if REPO_PATH not in sys.path:
     sys.path.insert(0, REPO_PATH)
 
+# Protenix source repo (installed as dataset attachment)
+PROTENIX_SRC = "/kaggle/input/protenix-rmsa-repo"
+if os.path.isdir(PROTENIX_SRC) and PROTENIX_SRC not in sys.path:
+    sys.path.insert(0, PROTENIX_SRC)
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -59,14 +76,18 @@ logger = logging.getLogger("kaggle_runner")
 # Kaggle path constants
 # ---------------------------------------------------------------------------
 INPUT = "/kaggle/input"
+COMP  = f"{INPUT}/stanford-rna-3d-folding-2"
 
 PATHS = {
-    "test_csv":         f"{INPUT}/stanford-rna-3d-folding-part-2/test_sequences.csv",
-    "pdb_db":           f"{INPUT}/rna-pdb-20250529/pdb_seqres_NA",
-    "cif_dir":          f"{INPUT}/rna-pdb-20250529/mmcif",
-    "msa_root":         f"{INPUT}/rna-msa-db",
-    "protenix_weights": f"{INPUT}/rna-prediction-engines/protenix_weights",
-    "drfold2_weights":  f"{INPUT}/rna-prediction-engines/drfold2_weights",
+    # Competition data (all inside the single competition dataset)
+    "test_csv":         f"{COMP}/test_sequences.csv",
+    "pdb_db":           f"{COMP}/PDB_RNA/pdb_seqres_NA",
+    "cif_dir":          f"{COMP}/PDB_RNA/mmcif",
+    "msa_root":         f"{COMP}/MSA",
+    # Model weights
+    "protenix_weights": f"{INPUT}/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt",
+    "drfold2_weights":  "",   # DRFold2 not available on Kaggle — skipped automatically
+    # Output
     "submission":       "/kaggle/working/submission.csv",
 }
 

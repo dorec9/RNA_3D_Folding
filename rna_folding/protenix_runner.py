@@ -82,12 +82,26 @@ class ProtenixRunner:
             from protenix.model.protenix import Protenix  # noqa: F401
             import torch
 
-            model = Protenix.from_pretrained(self.protenix_weights_path)
+            weights_path = self.protenix_weights_path
+            if os.path.isfile(weights_path) and weights_path.endswith(".pt"):
+                # Direct checkpoint file (e.g. 1599_ema_0.999.pt from Kaggle dataset)
+                model = Protenix()
+                state = torch.load(weights_path, map_location="cpu")
+                # Checkpoint may be nested under a 'model' or 'state_dict' key
+                if isinstance(state, dict):
+                    sd = state.get("model", state.get("state_dict", state))
+                else:
+                    sd = state
+                model.load_state_dict(sd, strict=False)
+            else:
+                # Directory with from_pretrained support
+                model = Protenix.from_pretrained(weights_path)
+
             model.eval()
             if torch.cuda.is_available():
                 model = model.cuda().half()  # FP16 — correct for T4
             self._model = model
-            logger.info("Protenix loaded from %s", self.protenix_weights_path)
+            logger.info("Protenix loaded from %s", weights_path)
             return model
         except Exception as exc:
             logger.warning("Protenix Python API unavailable (%s). Will use subprocess.", exc)
