@@ -5,46 +5,49 @@ Kaggle notebook entry point for the Stanford RNA 3D Folding Part 2 pipeline.
 SETUP INSTRUCTIONS (paste into Kaggle notebook cells before running):
 =============================================================================
 
-Cell 1 – Install offline wheels from attached datasets:
+Cell 1 – Install offline wheels (protenix-packages dataset):
     import subprocess, sys, glob
-    DS = "/kaggle/input/datasets"
-    for wheel_dir in [
-        f"{DS}/ogurtsov/biopython",
-        f"{DS}/ogurtsov/ml-collections",
-    ]:
-        subprocess.run([sys.executable, "-m", "pip", "install",
-                        "--no-index", "--find-links=" + wheel_dir,
-                        "--quiet", "."],
-                       check=False)
-    # Install Protenix wheel from zoushuxian/protenix-packages/packages/
-    for whl in glob.glob(f"{DS}/zoushuxian/protenix-packages/packages/*.whl"):
+    PKG = "/kaggle/input/protenix-packages"
+    for whl in glob.glob(f"{PKG}/**/*.whl", recursive=True):
         subprocess.run([sys.executable, "-m", "pip", "install",
                         "--quiet", whl], check=False)
 
-Cell 2 – Add repo and Protenix source to path:
+Cell 2 – Copy repo to /kaggle/working and add paths:
     import sys, os, shutil
-    DS = "/kaggle/input/datasets"
-    CODE_SRC = f"{DS}/doyhud/rna-3d-folding-code/RNA_3D_Folding-claude-sweet-maxwell-rteQC"
+
+    # ── Our code dataset (doyhud/rna-3d-folding-code) ──
+    _code_candidates = [
+        "/kaggle/input/rna-3d-folding-code/RNA_3D_Folding-claude-sweet-maxwell-rteQC",
+        "/kaggle/input/datasets/doyhud/rna-3d-folding-code/RNA_3D_Folding-claude-sweet-maxwell-rteQC",
+    ]
+    CODE_SRC = next((p for p in _code_candidates if os.path.isdir(p)), _code_candidates[0])
     CODE_DST = "/kaggle/working/RNA_3D_Folding"
     if not os.path.exists(CODE_DST):
         shutil.copytree(CODE_SRC, CODE_DST)
     sys.path.insert(0, CODE_DST)
-    sys.path.insert(0, f"{DS}/zoushuxian/protenix-rmsa-repo/protenix_kaggle")
 
-Cell 3 – Run this file:
+    # ── Protenix source repo (zoushuxian/protenix-rmsa-repo) ──
+    _protenix_candidates = [
+        "/kaggle/input/protenix-rmsa-repo/protenix_kaggle",
+        "/kaggle/input/datasets/zoushuxian/protenix-rmsa-repo/protenix_kaggle",
+    ]
+    for _p in _protenix_candidates:
+        if os.path.isdir(_p):
+            sys.path.insert(0, _p)
+            break
+
+Cell 3 – Run the pipeline:
     exec(open("/kaggle/working/RNA_3D_Folding/scripts/inference_notebook.py").read())
 
 =============================================================================
-DATASETS TO ATTACH IN KAGGLE (6 total + competition data):
+DATASETS TO ATTACH IN KAGGLE (5 datasets + competition data):
 =============================================================================
-- stanford-rna-3d-folding-2          (competition data: test_sequences.csv,
+- stanford-rna-3d-folding-2          (competition: test_sequences.csv,
                                        PDB_RNA/, MSA/)
 - protenix-finetuned-rna3db-all-1599 (Protenix weights: 1599_ema_0.999.pt)
-- protenix-packages                  (USalign binary + Protenix wheel)
-- protenix-rmsa-repo                 (Protenix source code)
-- protenix-mg-packages               (AIDO ModelGenerator)
-- biopython                          (offline .whl)
-- ml-collections                     (offline .whl)
+- protenix-packages                  (biopython, ml-collections, other .whl)
+- protenix-rmsa-repo                 (Protenix source: protenix_kaggle/)
+- rna-3d-folding-code                (this repository)
 =============================================================================
 """
 
@@ -56,16 +59,24 @@ import time
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Path setup
+# Path setup — must happen before any local imports
 # ---------------------------------------------------------------------------
+
+# Our repo (copied to working dir by Cell 2)
 REPO_PATH = "/kaggle/working/RNA_3D_Folding"
 if REPO_PATH not in sys.path:
     sys.path.insert(0, REPO_PATH)
 
-# Protenix source repo (zoushuxian/protenix-rmsa-repo dataset)
-PROTENIX_SRC = "/kaggle/input/datasets/zoushuxian/protenix-rmsa-repo/protenix_kaggle"
-if os.path.isdir(PROTENIX_SRC) and PROTENIX_SRC not in sys.path:
-    sys.path.insert(0, PROTENIX_SRC)
+# Protenix source repo: try the simple /kaggle/input/{slug} mount first,
+# then fall back to the datasets/username/slug layout.
+_PROTENIX_SRC_CANDIDATES = [
+    "/kaggle/input/protenix-rmsa-repo/protenix_kaggle",
+    "/kaggle/input/datasets/zoushuxian/protenix-rmsa-repo/protenix_kaggle",
+]
+for _p in _PROTENIX_SRC_CANDIDATES:
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+        break
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -81,8 +92,19 @@ logger = logging.getLogger("kaggle_runner")
 # Kaggle path constants
 # ---------------------------------------------------------------------------
 INPUT = "/kaggle/input"
-COMP  = f"{INPUT}/competitions/stanford-rna-3d-folding-2"
-DS    = f"{INPUT}/datasets"
+
+# Competition data — mounted directly under /kaggle/input/{slug}/
+COMP = f"{INPUT}/stanford-rna-3d-folding-2"
+
+# Protenix weights dataset — slug: protenix-finetuned-rna3db-all-1599
+_WEIGHTS_CANDIDATES = [
+    f"{INPUT}/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt",
+    f"{INPUT}/datasets/zoushuxian/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt",
+]
+_PROTENIX_WEIGHTS = next(
+    (p for p in _WEIGHTS_CANDIDATES if os.path.isfile(p)),
+    _WEIGHTS_CANDIDATES[0],  # default; will log a warning if missing
+)
 
 PATHS = {
     # Competition data
@@ -90,8 +112,8 @@ PATHS = {
     "pdb_db":           f"{COMP}/PDB_RNA/pdb_seqres_NA",
     "cif_dir":          f"{COMP}/PDB_RNA/mmcif",
     "msa_root":         f"{COMP}/MSA",
-    # Model weights (zoushuxian/protenix-finetuned-rna3db-all-1599)
-    "protenix_weights": f"{DS}/zoushuxian/protenix-finetuned-rna3db-all-1599/1599_ema_0.999.pt",
+    # Model weights
+    "protenix_weights": _PROTENIX_WEIGHTS,
     "drfold2_weights":  "",   # DRFold2 not available — skipped automatically
     # Output
     "submission":       "/kaggle/working/submission.csv",
@@ -147,9 +169,19 @@ def load_test_data() -> pd.DataFrame:
 
 def run_kaggle_pipeline() -> None:
     """Entry point: initialise pipeline, process all targets, write submission."""
+    # Verify repo path before importing; emit a helpful error if Cell 2 was skipped.
+    if not os.path.isfile(os.path.join(REPO_PATH, "inference.py")):
+        raise RuntimeError(
+            f"inference.py not found in {REPO_PATH}.\n"
+            "Did you run Cell 2 (shutil.copytree + sys.path setup) before Cell 3?"
+        )
+
     from inference import RNAFoldingPipeline
 
     logger.info("=== Stanford RNA 3D Folding Part 2 — Pipeline Start ===")
+    logger.info("REPO_PATH  : %s", REPO_PATH)
+    logger.info("COMP       : %s", COMP)
+    logger.info("weights    : %s", PATHS["protenix_weights"])
     logger.info("Config: %s", {k: v for k, v in CONFIG.items() if "weights" not in k})
 
     pipeline = RNAFoldingPipeline(CONFIG)
