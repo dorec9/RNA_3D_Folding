@@ -24,8 +24,7 @@ Cell 1 – Install offline wheels from attached datasets:
 Cell 2 – Add repo and Protenix source to path:
     import sys, os, shutil
     DS = "/kaggle/input/datasets"
-    # RNA_3D_Folding 코드 데이터셋 → working 복사 (import 경로 확보)
-    CODE_SRC = f"{DS}/YOUR_USERNAME/rna-3d-folding-code"   # ← 업로드 후 실제 경로로 변경
+    CODE_SRC = f"{DS}/doyhud/rna-3d-folding-code"
     CODE_DST = "/kaggle/working/RNA_3D_Folding"
     if not os.path.exists(CODE_DST):
         shutil.copytree(CODE_SRC, CODE_DST)
