@@ -22,9 +22,15 @@ Cell 1 – Install offline wheels from attached datasets:
                         "--quiet", whl], check=False)
 
 Cell 2 – Add repo and Protenix source to path:
-    import sys
-    sys.path.insert(0, "/kaggle/working/RNA_3D_Folding")
-    sys.path.insert(0, "/kaggle/input/datasets/zoushuxian/protenix-rmsa-repo")
+    import sys, os, shutil
+    DS = "/kaggle/input/datasets"
+    # RNA_3D_Folding 코드 데이터셋 → working 복사 (import 경로 확보)
+    CODE_SRC = f"{DS}/YOUR_USERNAME/rna-3d-folding-code"   # ← 업로드 후 실제 경로로 변경
+    CODE_DST = "/kaggle/working/RNA_3D_Folding"
+    if not os.path.exists(CODE_DST):
+        shutil.copytree(CODE_SRC, CODE_DST)
+    sys.path.insert(0, CODE_DST)
+    sys.path.insert(0, f"{DS}/zoushuxian/protenix-rmsa-repo")
 
 Cell 3 – Run this file:
     exec(open("/kaggle/working/RNA_3D_Folding/scripts/inference_notebook.py").read())
